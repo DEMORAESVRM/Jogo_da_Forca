@@ -1,0 +1,176 @@
+import pygame as pg
+import random
+import time
+
+# Cores do jogo
+cinza_claro = (166, 166, 166)
+preto = (0, 0, 0)
+
+# Setup da tela do Jogo
+largura_tela = 1000
+altura_tela = 600
+window = pg.display.set_mode((largura_tela, altura_tela))
+pg.display.set_caption("Jogo da Forca")
+
+# Inicializando fonte
+pg.font.init()
+fonte = pg.font.SysFont("Courier New", 50)
+fonte_rb = pg.font.SysFont("Courier New", 30)
+fonte_dica = pg.font.SysFont("Courier New", 20)
+
+
+palavras = ['PARALELEPIPEDO', 'ORNITORINCO', 'APARTAMENTO', 'XICARA', 'BORBOLETA', 'COMPUTADOR', 'TELEVISAO']
+dicas = ['Forma geométrica', 'Animal com bico de pato', 'Moradia', 'Recipiente para bebidas', 'Inseto', 'Máquina eletrônica', 'Aparelho eletrônico']
+
+
+def desenhar_forca(window, chance):
+    pg.draw.rect(window, cinza_claro, (0, 0, largura_tela, altura_tela))
+    pg.draw.line(window, preto, (100, 500), (100, 100), 10)
+    pg.draw.line(window, preto, (50, 500), (150, 500), 10)
+    pg.draw.line(window, preto, (100, 100), (300, 100), 10)
+    pg.draw.line(window, preto, (300, 100), (300, 150), 10)
+
+    if chance >= 1:
+        pg.draw.circle(window, preto, (300, 200), 50, 10)  # Cabeça
+    if chance >= 2:
+        pg.draw.line(window, preto, (300, 250), (300, 350), 10)  # Tronco
+    if chance >= 3:
+        pg.draw.line(window, preto, (300, 260), (225, 350), 10)  # Braço Direito
+    if chance >= 4:
+        pg.draw.line(window, preto, (300, 260), (375, 350), 10)  # Braço Esquerdo
+    if chance >= 5:
+        pg.draw.line(window, preto, (300, 350), (375, 450), 10)  # Perna Direita
+    if chance >= 6:
+        pg.draw.line(window, preto, (300, 350), (225, 450), 10)  # Perna Esquerda
+
+
+def desenhar_botao_reiniciar(window):
+    pg.draw.rect(window, preto, (700, 100, 200, 65))
+    texto = fonte_rb.render('Reiniciar', 1, cinza_claro)
+    window.blit(texto, (740, 120))
+
+
+def desenhar_palavra(window, palavra_camuflada):
+    texto = fonte.render(palavra_camuflada, 1, preto)
+    window.blit(texto, (200, 500))
+
+
+def desenhar_dica(window, dica_atual):
+    texto = fonte_dica.render(dica_atual, 1, preto)
+    window.blit(texto, (200, 450))
+    
+
+def jogar(dificuldade):
+    tentativas = 6
+    tempo_limite = 0
+
+    if dificuldade == "dificil":
+        tempo_limite = 30
+    elif dificuldade == "muito dificil":
+        tentativas = 3
+        tempo_limite = 15
+        
+    palavra_index = random.randint(0, len(palavras) - 1)
+    palavra_secreta = palavras[palavra_index]
+    dica = dicas[palavra_index]
+
+    palavra_camuflada = "#" * len(palavra_secreta)
+    letras_tentadas = []
+    erros = 0
+    inicio_jogo = time.time() if tempo_limite else None
+
+
+    jogando = True
+    while jogando:
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pg.quit()
+                quit()
+            if event.type == pg.KEYDOWN:
+                letra = str(pg.key.name(event.key)).upper()
+                if letra.isalpha() and letra not in letras_tentadas:
+                    letras_tentadas.append(letra)
+                    if letra in palavra_secreta:
+                        nova_palavra_camuflada = ""
+                        for i in range(len(palavra_secreta)):
+                            if palavra_secreta[i] == letra:
+                                nova_palavra_camuflada += letra
+                            else:
+                                nova_palavra_camuflada += palavra_camuflada[i]
+                        palavra_camuflada = nova_palavra_camuflada
+                    else:
+                        erros += 1
+        
+        mouse = pg.mouse.get_pos()
+        click = pg.mouse.get_pressed()
+        
+        desenhar_forca(window, erros)
+        desenhar_botao_reiniciar(window)
+        desenhar_palavra(window, palavra_camuflada)
+
+
+        if erros >= 2:  # Mostrar dica após o segundo erro
+            desenhar_dica(window, dica)
+
+        if palavra_camuflada == palavra_secreta:
+            texto_vitoria = fonte.render("Você venceu!", 1, preto)
+            window.blit(texto_vitoria, (300, 20))  # Posição do texto no centro 
+            jogando = False
+
+        if erros >= tentativas:
+            texto_derrota = fonte.render("Você perdeu! A palavra era: " + palavra_secreta, 1, preto)
+
+            window.blit(texto_derrota,(largura_tela//6,altura_tela//2) ) #Posição para não ser sobreposta
+            jogando = False
+
+
+        if tempo_limite:
+           tempo_decorrido = int(time.time() - inicio_jogo)
+           tempo_restante = tempo_limite - tempo_decorrido
+           texto_tempo = fonte.render(f"Tempo: {max(0, tempo_restante)}", 1, preto)  # max para não mostrar tempo negativo
+           window.blit(texto_tempo, (700, 20))
+
+           if tempo_restante <= 0:
+              texto_derrota_tempo = fonte.render("Tempo esgotado! A palavra era: " + palavra_secreta, 1, preto)
+              window.blit(texto_derrota_tempo,(largura_tela//6, altura_tela//2)) #Posição para não ser sobreposta
+              jogando = False
+
+        if click[0] and 700 <= mouse[0] <= 900 and 100 <= mouse[1] <= 165:  # área do retangulo Reiniciar
+            jogar(dificuldade)  # inicia um novo jogo no mesmo modo. 
+            #Remova esse break abaixo se desejar iniciar um jogo de outro nível na tela do "Você Venceu!
+            break       
+            
+        pg.display.update()
+
+
+
+# Menu inicial
+
+menu = True
+while menu:
+    for event in pg.event.get():
+        if event.type == pg.QUIT:
+            pg.quit()
+            quit()
+        if event.type == pg.MOUSEBUTTONDOWN:  # evento do clique em vez de KEYDOWN
+            mouse = pg.mouse.get_pos()
+            if 200 <= mouse[0] <= 400 and 200 <= mouse[1] <= 250:  #Normal
+                 jogar("normal")  
+            if 200 <= mouse[0] <= 400 and 280 <= mouse[1] <= 330:# Difícil
+                jogar("dificil")  
+            if 200 <= mouse[0] <= 400 and 360 <= mouse[1] <= 410: # Muito dificil
+                 jogar("muito dificil") 
+            
+    desenhar_forca(window, 0)       
+    pg.draw.rect(window, preto, (200, 200, 200, 50))
+    texto = fonte_rb.render('Normal', 1, cinza_claro)
+    window.blit(texto, (245, 210))
+    pg.draw.rect(window, preto, (200, 280, 200, 50))
+    texto2 = fonte_rb.render('Difícil', 1, cinza_claro)
+    window.blit(texto2, (255, 290))
+    pg.draw.rect(window, preto, (200, 360, 200, 50))
+    texto3 = fonte_rb.render('Muito difícil', 1, cinza_claro)
+    window.blit(texto3, (215, 370))
+
+
+    pg.display.update()
